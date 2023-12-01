@@ -1,0 +1,229 @@
+---
+title: 基于 webRTC 实现视频通话
+date: 2023-08-07
+tags:
+  - 陈旧收藏集
+---
+
+如今短视频在社交媒体上的盛行，视频通话已经成为人们日常生活中的标配。
+
+而实现这一实时通信技术中，webRTC 显露出其卓越的能力，也成为一种备受青睐的视频通话方式。
+
+本文将介绍如何使用 webRTC 实现一个一对一的视频通话。
+
+## 什么是 webRTC
+
+简单来说，WebRTC 是一个能够在 Web 应用程序中实现实时音频、视频和数据通信。
+
+在实时通信中，音视频流的采集和处理本质上是一项复杂的任务，包括编解码、降噪和回声消除等。然而，WebRTC 独特之处在于，所有这些繁琐的处理步骤都被浏览器的底层封装所代劳。
+
+这意味着我们可以直接获取优化后的视频流，并将其输出到本地屏幕和扬声器，或者转发给与我们通信的对等端。这种简化了音视频实时通信的方式，使得 WebRTC 成为一个便捷且高效的解决方案。
+
+因此，在实现音视频通信的过程中主要用到以下三个方法：
+
+- getUserMedia：用于获取音频和视频流（MediaStream）
+- RTCPeerConnection：用于建立点对点通信
+- RTCDataChannel：用于实现数据通信
+
+## GetUserMedia
+
+没有接触过音视频的人来说对于 [getUserMedia](https://developer.mozilla.org/zh-CN/docs/Web/API/MediaDevices/getUserMedia) 可能会比较陌生，甚至从未听说过，简单来说，它是可以访问用户媒体设备的 API，如摄像头或麦克风。
+
+试试下面的按钮 👇， 点击之后可以打开控制台就可以看到返回的**视频流**噢。
+
+<GridBox>
+  <UserMediaBtn/>
+</GridBox>
+
+关于`getUserMedia`的基本使用就讲到这里，现在我们试想一下，当双方都成功获取了摄像头的数据后，接下来要做什么呢？
+
+答案是--开始建立通信。而这一步恰好也是本文的重点所在。
+
+接下来，让我们一同探索如何通过构建通信，实现双方之间的实时音视频传输。
+
+## RTCPeerConnection
+
+[RTCPeerConnection](https://developer.mozilla.org/zh-CN/docs/Web/API/RTCPeerConnection)接口代表一个由本地计算机到远端的 WebRTC 连接。该接口提供了创建，保持，监控，关闭连接的方法的实现。
+
+并作为创建点对点连接的`APi`，是实现音视频通信的关键。在此之前我们会用到两个术语：**呼叫端**和**被呼叫端**。
+
+- 呼叫端：发起通信的一方 （即 A）
+- 被呼叫端：接受通信的一方 （即 B）
+
+创建通信的过程可以分为下面几个步骤：（[也可查看完整代码](https://github.com/AntzyMo/webrtc-chat/blob/main/src/components/PTP.vue)）
+
+ <Tabs>
+  <Tabs.TabPane label="上面说到先获取视频流">
+    先来封装一个获取视频流的方法，因为两端都是需要获取摄像头的
+    ```ts
+    let stream: MediaStream
+    async function setupUserMedia() {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true
+      })
+      localVideoRef.value!.srcObject = mediaStream
+      stream = mediaStream
+    }
+    ```
+  </Tabs.TabPane>
+   <Tabs.TabPane label="创建 RTCPeerConnection 实例">
+    既然需要进行通信，那必不可少的就是数据的传输格式了，那如何创建一个对方想要的数据格式呢？`RTCPeerConnection`的作用就在这了。
+
+    ```ts
+    const peer = new RTCPeerConnection()
+    ```
+
+    这里都用`new`了，说明返回的是个空对象，要我们添加数据进去，接着我们需要把**视频流**添加到`peer`里面去
+
+    ```ts
+    mediaStream.getTracks().forEach(track => peer.addTrack(track, mediaStream))
+    ```
+
+    到这一步数据的格式已经准备好了，接下来就等着发送过对方了，在发送之前还需要监听一些事件，比如`onicecandidate`，`ontrack`等等，这里就不一一介绍了，具体可以看下面的代码。
+
+    ```ts
+    // 监听icecandidate事件
+    peer.onicecandidate = e => {
+      console.log('onicecandidate', e)
+      if (e.candidate) ws.emit('ice-candidate', e.candidate)
+    }
+
+    // 监听连接是否成功
+    peer.onconnectionstatechange = e => {
+      console.log('onconnectionstatechange', peer.connectionState)
+    }
+
+    // 连接成功后开始获取对方的视频流
+    peer.ontrack = event => {
+      console.log('ontrack', event)
+      remoteVideoRef.value!.srcObject = event.streams[0]
+    }
+    ```
+
+  </Tabs.TabPane>
+  <Tabs.TabPane label="创建 Offer">
+    上一步已经把数据格式处理好了，这里需要注意，要储存呼叫方的`peer`实例，后面交换信令会用到，接下来就是要发送给对方了，这时呼叫方需要创建一个`offer`
+
+    ```ts
+    let pc: RTCPeerConnection
+    async function createLocalPeerConnection() {
+      const peer = (pc = createPeerConnection(stream))
+      // 1. 创建 offer
+      const offer = await peer.createOffer()
+      // 2. 设置本地描述
+      await peer.setLocalDescription(offer)
+      ws.emit('offer', offer)
+    }
+    ```
+
+    调用的时机在有人进房间了就可以开启了
+
+    ```ts
+    ws.on('peerConnect', () => {
+      console.log('peerConnect')
+      createLocalPeerConnection()
+    })
+    ```
+
+  </Tabs.TabPane>
+  <Tabs.TabPane label="开启 ws 服务">
+      新建一个`server.mjs`，作用是开启一个`ws`服务，用来接收对方发送的消息，比如说我发送了一个`offter`，这时就需要一个中转站来把这个`offter`发给对方。
+
+      ```js
+      import { Server } from 'socket.io'
+
+      const io = new Server({
+        cors: {
+          origin: ['http://localhost:5173'] // 这里需要配置跨域
+        }
+      })
+
+      const rooms = []
+      io.on('connection', socket => {
+        socket.on('joinRoom', roomParams => onJoinRoom(socket, roomParams))
+        socket.on('offer', offer => onOffer(socket, offer))
+        socket.on('answer', answer => onAnswer(socket, answer))
+        socket.on('ice-candidate', iceCandidate => onIceCandidate(socket, iceCandidate))
+      })
+
+      function onJoinRoom(socket, roomParams) {
+        const { name } = roomParams
+        socket.join('www')
+        rooms.push(name)
+        // 给房间的人发送消息 除了自己
+        socket.to('www').emit('peerConnect', name)
+      }
+
+      function onOffer(socket, offer) {
+        socket.to('www').emit('offer', offer)
+      }
+
+      function onAnswer(socket, answer) {
+        socket.to('www').emit('answer', answer)
+      }
+      function onIceCandidate(socket, iceCandidate) {
+        socket.to('www').emit('ice-candidate', iceCandidate)
+      }
+
+      io.listen(3001)
+      ```
+
+  </Tabs.TabPane>
+   <Tabs.TabPane label="创建 answer">
+      创建`answer`跟`offter`的流程是一样的，当接收到`offter`的时候，需要创建一个`answer`。
+
+      ```ts
+      ws.on('offer', offer => {
+        createRemotePeerConnection(offer)
+      })
+      ```
+
+      这里不同点在于要把`offer`保存到远程描述里面。
+
+      ```ts
+      let pc1: RTCPeerConnection
+      async function createRemotePeerConnection(offer) {
+        const peer = (pc1 = createPeerConnection(stream))
+
+        peer.setRemoteDescription(offer)
+
+        // 1. 创建 answer
+        const answer = await peer.createAnswer()
+
+        // 5. 设置本地描述
+        await peer.setLocalDescription(answer)
+
+        ws.emit('answer', answer)
+      }
+      ```
+
+      #s 接收 answer 并处理 ice 实现视频聊天
+      同样的，接收到`answer`后，需要把`answer`保存到远程描述里面。
+
+      ```ts
+      // 接收 answer
+      ws.on('answer', answer => {
+        pc.setRemoteDescription(answer)
+      })
+      ```
+
+      这里最关键！！！这里接收到的`ice`都是对方的，所以要区分 A 和 B 的`peer`，当这一步完成后，就可以实现视频聊天了。
+
+      ```ts
+      ws.on('ice-candidate', candidate => {
+        const pcl = pc1 || pc
+        pcl.addIceCandidate(candidate)
+      })
+      ```
+
+  </Tabs.TabPane>
+</Tabs>
+
+## 兼容性
+
+由于浏览器之间存在兼容性问题，为了解决这个情况，我们需要引入一个名为 `webrtc-adapter` 的第三方库。
+
+```ts
+import 'webrtc-adapter'
+```

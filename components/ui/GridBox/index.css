@@ -1,0 +1,9 @@
+.gridbox {
+  background: url('/icon/grid.svg');
+  background-size: 40px 40px;
+}
+
+.dark .gridbox {
+  background: url('/icon/grid-dark.svg');
+  background-size: 40px 40px;
+}

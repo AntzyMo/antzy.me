@@ -1,0 +1,74 @@
+.prose {
+  max-width: 85ch !important;
+}
+
+.prose h1 {
+  color: var(--fg);
+  margin-bottom: 1em;
+}
+
+.prose p {
+  margin-top: 1.2em;
+  margin-bottom: 1.2em;
+  color: var(--fg);
+}
+
+.prose a {
+  text-decoration: none;
+}
+
+.prose a:hover {
+  border-bottom-style: solid;
+}
+
+.prose img {
+  border-radius: 5px;
+}
+
+.prose h2,
+.prose h3 {
+  scroll-margin-top: 100px;
+  color: var(--fg);
+}
+
+.prose h2 {
+  margin-top: 2em;
+}
+.prose h2::before {
+  content: '';
+  display: block;
+  width: 1em;
+  height: 2px;
+  background: var(--fg);
+  z-index: 1;
+  transform: translateY(-17px);
+}
+
+.prose input {
+  background: transparent;
+  outline: none;
+}
+
+.prose li{
+  color: var(--fg);
+}
+
+.prose pre{
+  background: var(--panel-bg);
+}
+.prose :not(pre) > code::before,
+.prose :not(pre) > code::after{
+  content:none
+}
+
+.prose :not(pre) > code{
+  @apply rounded py-1 px-2 mx-1 c-fg light:op-85 bg-light-400 dark:bg-dark-300 
+}
+
+html.dark  pre[data-theme='light'],code[data-theme='light']{
+  display: none;
+}
+
+html.light  pre[data-theme='dark'],code[data-theme='dark']{
+  display: none;
+}

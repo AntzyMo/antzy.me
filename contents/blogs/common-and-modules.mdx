@@ -1,0 +1,69 @@
+---
+title: Node 在 ES Modules 和 Commonjs 中使用绝对路径的区别
+date: 2022-11-11
+tags:
+ - 陈旧收藏集
+---
+
+
+## Commonjs中使用
+
+`path` 的使用方法
+
+- join：顾名思义就是拼接，最终返回的是拼接后的路径
+- resolve：返回的是绝对路径，并且可以传入多个参数组成绝对路径
+
+最终使用效果：
+
+```js
+const path = require('node:path')
+
+path.join('/foo', 'bar', 'baz/asdf')
+path.resolve('./src', './index.js')
+
+// \foo\bar\baz\asdf
+// E:\testBox\src\index.js
+```
+<br/>
+
+```js
+const path = require('node:path')
+
+console.log(path.join(__dirname, './index.js'))
+console.log(path.resolve('./index.js'))
+
+// E:\testBox\index.js
+// E:\testBox\index.js
+```
+
+## ES Modules中使用
+
+官方已经说明了`__dirname` 这类的全局变量不能在`ES Modules` 中使用，不过提供了`import.meta.url` 这个api，我们来试试吧
+
+<Image src="/blogs/1.png" alt="moduleAndcommon"/>
+
+通过打印`import.meta.url` 可以获取到当前文件的绝对路径，不过是以`file：//` 协议开头的，接下来我们来进行转换了本地磁盘路径
+
+```js
+file:///E:/testBox/test.mjs
+```
+
+`fileURLToPath` 只接收一个参数，它可以把`file` 转换成磁盘的本地路径，现在就大功告成啦
+
+```jsx
+import { fileURLToPath } from 'node:url'
+
+const url = fileURLToPath(import.meta.url)
+
+// url= E:\testBox\test.mjs
+```
+
+如果需要改变路径位置，显然这远远不够，这时就可以创建一个新`url` ，通过`new URL` 接收两个参数：一个是目标路径，另一个是默认路径，返回的是组合后的路径，然后再去转换
+
+```jsx
+import { URL, fileURLToPath } from 'node:url'
+
+const url = fileURLToPath(new URL('./index.js', import.meta.url))
+
+// url= E:\testBox\index.js
+```

@@ -1,0 +1,28 @@
+:root {
+  --c-bg: hsl(0, 0%, 93%);
+
+  /* scrollbar */
+  --c-scrollbar: #d4d4d8;
+  --c-scrollbar-hover: #a1a1aa;
+
+  /* font-color-gay */
+  --fg: hsl(0, 0%, 9%);
+
+  /* panel */
+  --panel-bg: hsl(0, 0%, 93%);
+  --panel-border: hsl(0, 0%, 78%);
+}
+
+html.dark {
+  color-scheme: dark;
+  --c-bg: hsl(0, 0%, 8.5%);
+
+  --c-scrollbar: #3f3f46;
+  --c-scrollbar-hover: #52525b;
+
+  --fg: hsl(0, 0%, 85%);
+  --fg1: hsl(0, 0%, 98%);
+
+  --panel-bg: hsl(0, 0%, 11%);
+  --panel-border: hsl(0, 0%, 20.5%);
+}
