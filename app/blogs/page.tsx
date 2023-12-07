@@ -71,7 +71,8 @@ export default function Page() {
   function search(params: { tags: string | undefined; title: string | undefined }) {
     const options = JSON.parse(JSON.stringify(params))
 
-    if (JSON.stringify(options) === '{}')
+    const isNullVal = Object.values(options).filter(Boolean)
+    if (isNullVal)
       return setList(blogsList)
 
     setList(fuse.search(options).map(it => it.item))
