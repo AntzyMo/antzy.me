@@ -90,7 +90,7 @@ export default function Page() {
                 searchPost.current = e.target.value
                 search({
                   title: e.target.value,
-                  tag: tags?.find(item => item.active)?.name || undefined
+                  tags: tags?.find(item => item.active)?.name || undefined
                 })
               }}
             />
